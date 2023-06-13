@@ -16,5 +16,17 @@ message(${OpenCV_INCLUDE_DIRS})
 ## compile mpi static
 # add_executable(mandelbrot_mpi_static mpi_static.cpp)
 # target_link_libraries(mandelbrot_mpi_static ${MPI_LIBRARIES} ${OpenCV_LIBS})
-add_executable(mandelbrot_mpi_dynamic mpi_dynamic.cpp)
-target_link_libraries(mandelbrot_mpi_dynamic ${MPI_LIBRARIES} ${OpenCV_LIBS})
+
+## compile mpi dynamic
+# add_executable(mandelbrot_mpi_dynamic mpi_dynamic.cpp)
+# target_link_libraries(mandelbrot_mpi_dynamic ${MPI_LIBRARIES} ${OpenCV_LIBS})
+
+# compile openmp dynamic
+# set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+# add_executable(omp_dynamic omp_dynamic.cpp)
+# target_link_libraries(omp_dynamic ${OpenCV_LIBS})
+
+# compile hybrid 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+add_executable(hybrid hybrid.cpp)
+target_link_libraries(hybrid ${OpenCV_LIBS} ${MPI_LIBRARIES})
