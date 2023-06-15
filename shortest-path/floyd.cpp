@@ -78,17 +78,19 @@ int main(int argc, char* argv[])
     {
         //if Kth row in current node
         int from_k_to[num_of_vertices];
-        if(k>=roi_row_start && k < roi_row_end)
+        const int owner = k/(num_of_vertices/size);
+        if(owner == rank)
         {
             memcpy(from_k_to,&(distance[roi_row_start][0]), num_of_vertices);
         }
-        MPI_Bcast(from_k_to,)
+        MPI_Bcast(from_k_to,num_of_vertices,MPI_INT, owner,MPI_COMM_WORLD);
+        //use openmp
         for (int i = roi_row_start; i < roi_row_end; i++)
         {
             for (int j = 0; j < num_of_vertices; j++)
             {
-                if(distance[i][j] > distance[i][k] + distance[k][j])
-                    distance[i][j] = distance[i][k] + distance[k][j];
+                if(distance[i][j] > distance[i][k] + from_k_to[j])
+                    distance[i][j] = distance[i][k] + from_k_to[j];
             }
             
         }
