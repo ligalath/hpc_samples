@@ -1,4 +1,4 @@
-# How to buld
+# How to build
 ``` sh
 cd /dir/of/src
 mkdir build && cd build

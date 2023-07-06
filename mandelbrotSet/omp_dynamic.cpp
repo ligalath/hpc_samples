@@ -45,7 +45,6 @@ int main(int argc, char* argv[])
     const double scale_imaginary = (upper - lower) / h;
 
     #pragma openmp parallel for collapse(2), schedule(dynamic)
-    // #pragma omp parallel for collapse(2)
     for(int row = 0; row < w; ++row)
     {
         for(int col = 0; col < h; ++col)

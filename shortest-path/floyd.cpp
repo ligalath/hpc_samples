@@ -28,6 +28,7 @@ typedef struct {
    …                      …           …
    32 bit integer                     Weight on edge 5
  * @return int 
+ * @note mpiexec -n 4 ./program in_file_path out_file_path
  */
 int main(int argc, char* argv[])
 {
@@ -51,12 +52,13 @@ int main(int argc, char* argv[])
     //read 3 int(src id, dst id, weight) in one read
     const int read_unit = 3;
     //read area partition
-    int read_length = num_of_edges*read_unit;
     int offset = num_of_edges/size * rank * read_unit;
+    int read_length = (num_of_edges/size + num_of_edges%size*(rank==size-1?1:0))*read_unit;
     //read partition of edges
-    MPI_File_set_view(mpi_file, 2, MPI_INT, MPI_INT, "internal", MPI_INFO_NULL);
+    MPI_File_set_view(mpi_file, 2+offset, MPI_INT, MPI_INT, "internal", MPI_INFO_NULL);
     int file_content[read_length];
     MPI_File_read_all(mpi_file, &file_content, read_length, MPI_INT, &status);
+    MPI_File_close(&mpi_file);
     //parse file content
     int distance[num_of_vertices][num_of_vertices];
     memset(distance, INT64_MAX, num_of_vertices*num_of_vertices*sizeof(int));
@@ -72,7 +74,7 @@ int main(int argc, char* argv[])
     int roi_row_start = num_of_vertices_to_process * rank;
     if(size-1 == rank)
         num_of_vertices_to_process = num_of_vertices - num_of_vertices_to_process*(size-1);
-    int roi_row_end = roi_src_start + num_of_vertices_to_process;
+    int roi_row_end = roi_row_start + num_of_vertices_to_process;
     //execute floyd algorithym algorithym
     for (int k = 0; k < num_of_vertices; k++)
     {
@@ -85,6 +87,7 @@ int main(int argc, char* argv[])
         }
         MPI_Bcast(from_k_to,num_of_vertices,MPI_INT, owner,MPI_COMM_WORLD);
         //use openmp
+        #pragma openmp parallel for collapse(2), schedule(dynamic)
         for (int i = roi_row_start; i < roi_row_end; i++)
         {
             for (int j = 0; j < num_of_vertices; j++)
@@ -94,11 +97,36 @@ int main(int argc, char* argv[])
             }
             
         }
-        //inform other procs
     }
+    MPI_File mpi_out_file;
+    MPI_File_open(MPI_COMM_WORLD, out_file_path.c_str(), MPI_MODE_WRONLY|MPI_MODE_CREATE,MPI_INFO_NULL, &mpi_out_file);
+    std::vector<int> out_data;
     //write result to file
-    
+    for (int i = roi_row_start; i < roi_row_end; i++)
+    {
+        for (int j = 0; j < num_of_vertices; j++)
+        {
+            if(distance[i][j] < INT64_MAX)
+            {
+                out_data.push_back(i);
+                out_data.push_back(j);
+                out_data.push_back(distance[i][j]);
+            }
+        }
+    }
+    int write_len = out_data.size();
+    int distance_num[size -1] = {0};
+    MPI_Gather(&write_len, 1, MPI_INT, &distance_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_File_seek_shared(mpi_out_file, sizeof(int), MPI_SEEK_SET);
+    MPI_File_write_ordered(mpi_out_file, out_data.data(), write_len, MPI_INT, &status);
+    if(rank == 0)
+    {
+        int distance_num_sum = 0;
+        for(auto i:distance_num)
+            distance_num_sum += i;
+        MPI_File_write_at(mpi_out_file, 0, &distance_num, 1, MPI_INT, &status);
+    }
+    MPI_File_close(&mpi_out_file);
 
-    
     MPI_Finalize();
 }
